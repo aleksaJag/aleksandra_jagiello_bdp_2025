@@ -1,113 +1,45 @@
-CREATE EXTENSION postgis;
-
-CREATE TABLE obiekty (
-    id SERIAL PRIMARY KEY,
-    name TEXT,
-    geom geometry
+CREATE TABLE ksiegowosc.pracownicy (
+    id_pracownika SERIAL PRIMARY KEY,
+    imie VARCHAR(30) NOT NULL,
+    nazwisko VARCHAR(40) NOT NULL,
+    adres VARCHAR(100),
+    telefon VARCHAR(15)
 );
 
-INSERT INTO obiekty(name, geom) VALUES
-('obiekt1',
- ST_CurveToLine(
-   ST_GeomFromText(
-     'COMPOUNDCURVE(
-        (0 1, 1 1),
-        CIRCULARSTRING(1 1, 2 0, 3 1),
-        CIRCULARSTRING(3 1, 4 2, 5 1),
-        (5 1, 6 1)
-     )'
-   )
- )
+COMMENT ON TABLE ksiegowosc.pracownicy IS 'Tabela przechowuje dane pracowników firmy.';
+
+CREATE TABLE ksiegowosc.godziny (
+    id_godziny SERIAL PRIMARY KEY,
+    data DATE NOT NULL,
+    liczba_godzin NUMERIC(5,2) NOT NULL,
+    id_pracownika INT REFERENCES ksiegowosc.pracownicy(id_pracownika)
 );
 
-INSERT INTO obiekty (name, geom) VALUES 
-('obiekt2', 
-    ST_CurveToLine(
-        ST_GeomFromText(
-            'CURVEPOLYGON(
-                COMPOUNDCURVE(
-                    (10 2, 10 6),
-                    (10 6, 14 6),
-                    CIRCULARSTRING(14 6, 16 4, 14 2),
-                    CIRCULARSTRING(14 2, 12 0, 10 2)
-                ),
-                CIRCULARSTRING(11 2, 13 2, 11 2)
-            )'
-        )
-    )
+COMMENT ON TABLE ksiegowosc.godziny IS 'Ewidencja liczby przepracowanych godzin.';
+
+CREATE TABLE ksiegowosc.pensja (
+    id_pensji SERIAL PRIMARY KEY,
+    stanowisko VARCHAR(40) NOT NULL,
+    kwota NUMERIC(10,2) NOT NULL
 );
 
-INSERT INTO obiekty(name, geom) VALUES
-('obiekt3',
- ST_GeomFromText(
-   'POLYGON((7 15, 10 17, 12 13, 7 15))'
- )
+COMMENT ON TABLE ksiegowosc.pensja IS 'Lista stanowisk oraz przypisanych im wynagrodzeń zasadniczych.';
+
+CREATE TABLE ksiegowosc.premia (
+    id_premii SERIAL PRIMARY KEY,
+    rodzaj VARCHAR(40) NOT NULL,
+    kwota NUMERIC(10,2) NOT NULL
 );
 
-INSERT INTO obiekty(name, geom) VALUES
-('obiekt4',
- ST_GeomFromText(
-   'LINESTRING(
-      20 20, 25 25, 27 24, 25 22, 26 21, 22 19, 20.5 19.5
-   )'
- )
+COMMENT ON TABLE ksiegowosc.premia IS 'Lista rodzajów premii oraz ich kwot.';
+
+CREATE TABLE ksiegowosc.wynagrodzenie (
+    id_wynagrodzenia SERIAL PRIMARY KEY,
+    data DATE NOT NULL,
+    id_pracownika INT REFERENCES ksiegowosc.pracownicy(id_pracownika),
+    id_godziny INT REFERENCES ksiegowosc.godziny(id_godziny),
+    id_pensji INT REFERENCES ksiegowosc.pensja(id_pensji),
+    id_premii INT REFERENCES ksiegowosc.premia(id_premii)
 );
 
-INSERT INTO obiekty(name, geom)
-VALUES (
-  'obiekt5',
-  ST_Collect(
-    ST_SetSRID(ST_MakePoint(30, 30, 59), 0),
-    ST_SetSRID(ST_MakePoint(38, 32, 234), 0)
-  )
-);
-
-INSERT INTO obiekty(name, geom) VALUES
-('obiekt6',
- ST_Collect(
-     ST_GeomFromText('LINESTRING(1 1, 3 2)'),
-     ST_Point(4, 2)
- )
-);
-
-
--- Zadania
-
--- 2.
-SELECT 
-    ST_Area(
-        ST_Buffer(
-            ST_ShortestLine(
-                (SELECT geom FROM obiekty WHERE name='obiekt3'),
-                (SELECT geom FROM obiekty WHERE name='obiekt4')
-            ),
-        5)
-    ) AS pole_bufora;
-
--- 3.
--- Żeby LINESTRING można było zmienić na POLYGON, musi być zamknięty 
--- (pierwszy i ostatni punkt takie same).
-UPDATE obiekty
-SET geom = ST_AddPoint(geom, ST_StartPoint(geom))
-WHERE name='obiekt4';
-
-UPDATE obiekty
-SET geom = ST_MakePolygon(geom)
-WHERE name='obiekt4';
-
-
--- 4.
-INSERT INTO obiekty(name, geom)
-SELECT
-    'obiekt7',
-    ST_Union(
-        (SELECT geom FROM obiekty WHERE name='obiekt3'),
-        (SELECT geom FROM obiekty WHERE name='obiekt4')
-    );
-
--- 5.
-SELECT 
-    name,
-    ST_Area(ST_Buffer(geom, 5)) AS pole_bufora
-FROM obiekty
-WHERE NOT ST_HasArc(geom);
+COMMENT ON TABLE ksiegowosc.wynagrodzenie IS 'Łączne informacje o wypłatach pracowników.';
